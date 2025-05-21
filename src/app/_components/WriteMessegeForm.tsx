@@ -13,15 +13,14 @@ export const WriteMessageForm = () => {
   const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef(null);
 
-  // Set isConnected to true by default (you can replace with actual connection logic)
-  const isConnected = true;
 
   const mutation = api.messages.createNewMessege.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access
       toast.success("Message sent successfully");
       setMessage("");
       setIsSending(false);
+      await utils.messages.getMessages.invalidate();
 
       // You might want to invalidate queries to refresh message list
       // utils.messages.getMessages.invalidate();
@@ -33,6 +32,8 @@ export const WriteMessageForm = () => {
     }
   });
 
+  const utils = api.useUtils()
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
@@ -43,44 +44,45 @@ export const WriteMessageForm = () => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-md mx-auto"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="w-full"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="relative">
           <Textarea
             ref={textareaRef}
-            className="w-full min-h-[120px] resize-none p-4 rounded-xl border-2 border-pink-100 focus:border-pink-300 focus:ring-1 focus:ring-pink-200 shadow-sm transition-all duration-200 text-gray-800 bg-white/80 backdrop-blur-sm placeholder:text-gray-400"
+            className="w-full min-h-[120px] resize-none p-4 rounded-xl border-2 border-pink-500/20 focus:border-pink-500/40 focus:ring-1 focus:ring-pink-500/20 shadow-lg transition-all duration-300 text-gray-200 bg-black/30 backdrop-blur-md placeholder:text-gray-500"
             placeholder="Type your message here..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            disabled={isSending || !isConnected}
+            disabled={isSending}
           />
 
-          {/* Character count */}
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: message.length > 0 ? 1 : 0 }}
-            className="absolute bottom-3 right-3 text-xs text-pink-400 bg-white/80 backdrop-blur-sm px-2 py-1 rounded-full"
+            animate={{ 
+              opacity: message.length > 0 ? 1 : 0
+            }}
+            transition={{ duration: 0.2 }}
+            className="absolute bottom-3 right-3 text-xs text-pink-400 bg-black/30 backdrop-blur-md px-2 py-1 rounded-full font-medium border border-pink-500/20 will-change-opacity"
           >
             {message.length} {message.length === 1 ? 'character' : 'characters'}
           </motion.div>
         </div>
 
         <div className="flex justify-between items-center">
-          {/* Send button */}
           <motion.div
-            whileTap={{ scale: 0.97 }}
-            whileHover={{ scale: 1.02 }}
-            className="w-full"
+            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.01 }}
+            className="w-full will-change-transform"
           >
             <Button
               type="submit"
-              disabled={!message.trim() || isSending || !isConnected}
-              className={`w-full rounded-full px-6 py-2.5 flex items-center justify-center gap-2 shadow-md transition-all duration-200 ${
-                !message.trim() || !isConnected
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              disabled={!message.trim() || isSending}
+              className={`w-full rounded-full px-6 py-2.5 flex items-center justify-center gap-2 shadow-lg transition-all duration-300 ${
+                !message.trim()
+                  ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                   : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
               }`}
             >
@@ -88,10 +90,11 @@ export const WriteMessageForm = () => {
                 {isSending ? (
                   <motion.div
                     key="loading"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    className="flex items-center gap-2"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex items-center gap-2 will-change-opacity"
                   >
                     <svg
                       className="animate-spin h-4 w-4 text-white"
@@ -118,10 +121,11 @@ export const WriteMessageForm = () => {
                 ) : (
                   <motion.div
                     key="send"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    className="flex items-center gap-2"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex items-center gap-2 will-change-opacity"
                   >
                     <span>Send</span>
                     <Send className="h-4 w-4" />

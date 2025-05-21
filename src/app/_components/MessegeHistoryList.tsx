@@ -1,24 +1,47 @@
 "use client";
 
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
-import { Clock, MessageSquare, Sparkles } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { api } from "@/trpc/react";
+import { Clock, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { api } from "@/trpc/react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
-// Define the Message type if it's not imported elsewhere
+export type messageHistory = {
+  id: number
+  text: string | null
+  timestamp: Date
+}[] | undefined
 
-export const MessageHistoryList = () => {
-  const { data: messageHistory, isLoading, isError, dataUpdatedAt } =
-    api.messages.getMessages.useQuery(undefined, {
-      refetchOnWindowFocus: true,
-      refetchInterval: 30000, // Auto-refresh every 30 seconds
-    });
+export const MessageHistoryList = ({ initialMessages }: { initialMessages: messageHistory }) => {
+  const [messageToDelete, setMessageToDelete] = useState<number | null>(null);
+
+  const { data: messageHistory, refetch } = api.messages.getMessages.useQuery(undefined, {
+    initialData: initialMessages,
+  });
+
+  const deleteMutation = api.messages.deleteMessage.useMutation({
+    onSuccess: async () => {
+      await refetch();
+      setMessageToDelete(null);
+      toast.success("Message deleted successfully");
+    },
+  });
 
   const formatTimeAgo = (timestamp: Date | string): string => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return,@typescript-eslint/no-unsafe-call
       return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
     } catch (e) {
       console.error("Invalid date format:", e);
@@ -26,139 +49,128 @@ export const MessageHistoryList = () => {
     }
   };
 
-// Safe way to handle dataUpdatedAt with proper type checking
-  const getLastUpdated = (dataUpdatedAt: number | null | undefined): string => {
-    if (!dataUpdatedAt || typeof dataUpdatedAt !== 'number') {
-      return "just now";
-    }
-
-    try {
-      const date = new Date(dataUpdatedAt);
-      // Validate that we have a valid date
-      if (isNaN(date.getTime())) {
-        return "just now";
-      }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return,@typescript-eslint/no-unsafe-call
-      return formatDistanceToNow(date, { addSuffix: false });
-    } catch (e) {
-      console.error("Error formatting date:", e);
-      return "just now";
-    }
+  const handleDelete = (id: number) => {
+    deleteMutation.mutate(id);
   };
 
-// Use the safe function
-  const lastUpdated = getLastUpdated(dataUpdatedAt);
-
-  // Handle loading and error states
-  if (isLoading) {
-    return (
-      <div className="space-y-3 w-full mx-auto">
-        {[1, 2, 3].map((n) => (
-          <motion.div
-            key={n}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: n * 0.1 }}
-            className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-pink-100 shadow-sm"
-          >
-            <div className="flex items-center mb-2">
-              <Skeleton className="h-4 w-24 bg-pink-50" />
-            </div>
-            <Skeleton className="h-4 w-full bg-pink-50" />
-            <Skeleton className="h-4 w-2/3 bg-pink-50 mt-2" />
-          </motion.div>
-        ))}
-      </div>
-    );
-  }
-
-  if (isError || !messageHistory || messageHistory.length === 0) {
-    return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="text-center py-8 text-gray-400 bg-white/80 backdrop-blur-sm rounded-xl border border-pink-100 shadow-sm w-full mx-auto"
-      >
-        <div className="flex flex-col items-center gap-2">
-          <MessageSquare className="h-8 w-8 text-pink-300" />
-          <p>{isError ? "Failed to load messages" : "No messages yet"}</p>
-        </div>
-      </motion.div>
-    );
-  }
-
-  // Sort messages from newest to oldest
-  const sortedMessages = [...messageHistory].sort((a, b) =>
-    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
+  const sortedMessages = messageHistory?.sort((a, b) => {
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+  });
 
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1
+        staggerChildren: 0.05,
+        delayChildren: 0.1
       }
     }
   };
 
   const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
+    hidden: {
+      opacity: 0
+    },
     visible: {
-      y: 0,
       opacity: 1,
       transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 24
+        duration: 0.3
+      }
+    },
+    exit: {
+      opacity: 0,
+      transition: {
+        duration: 0.2
       }
     }
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
       className="w-full mx-auto"
     >
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="flex items-center gap-2 text-sm text-pink-500 font-medium mb-4"
-      >
-        <Sparkles className="h-4 w-4" />
-        <span>Updated {lastUpdated}</span>
-      </motion.div>
+      <AlertDialog open={messageToDelete !== null} onOpenChange={(open) => !open && setMessageToDelete(null)}>
+        <AlertDialogContent className="bg-black/80 border border-pink-500/30 backdrop-blur-md text-gray-200">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-100">Confirm Deletion</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              Are you sure you want to delete this message? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-transparent border border-pink-500/30 text-gray-300 hover:bg-pink-500/10 hover:text-gray-100">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => messageToDelete !== null && handleDelete(messageToDelete)}
+              className="bg-pink-500/20 text-pink-200 hover:bg-pink-500/30 border border-pink-500/50"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="space-y-4 max-h-[calc(100vh-200px)] md:max-h-[500px)] overflow-y-auto pr-1 custom-scrollbar"
+        className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto pr-2 custom-scrollbar"
       >
-        <AnimatePresence>
-          {sortedMessages.map((message) => (
+        <AnimatePresence mode="popLayout">
+          {sortedMessages?.map((message) => (
             <motion.div
               key={message.id}
               variants={itemVariants}
               layout
-              whileHover={{ scale: 1.01 }}
-              className="transform-gpu"
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              whileHover={{
+                scale: 1.01,
+                transition: { duration: 0.2 }
+              }}
+              className="transform-gpu will-change-transform"
             >
-              <Card className="p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-pink-100 shadow-sm hover:shadow-md transition-all duration-200">
+              <Card className="p-4 bg-black/30 backdrop-blur-md rounded-xl border border-pink-500/20 shadow-lg hover:border-pink-500/40 transition-all duration-300">
                 <div className="mb-2">
-                  <div className="flex items-center gap-2 text-xs text-pink-400 mb-2">
-                    <Clock className="h-3.5 w-3.5" />
-                    <span>{formatTimeAgo(message.timestamp)}</span>
+                  <div className="flex items-center justify-between gap-2 text-xs text-pink-400 mb-2">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span className="font-medium">{formatTimeAgo(message.timestamp)}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-full text-pink-400/70 hover:text-pink-400 hover:bg-pink-500/10 transition-colors"
+                      onClick={() => setMessageToDelete(message.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span className="sr-only">Delete message</span>
+                    </Button>
                   </div>
-                  <div className="h-px w-full bg-gradient-to-r from-transparent via-pink-100 to-transparent mb-3"></div>
-                  <p className="text-gray-800 text-sm leading-relaxed">
+                  <div className="h-px w-full bg-gradient-to-r from-transparent via-pink-500/20 to-transparent mb-3"></div>
+                  <p className="text-gray-200 text-sm leading-relaxed">
                     {message.text}
                   </p>
                 </div>
               </Card>
             </motion.div>
           ))}
+          {(!sortedMessages || sortedMessages.length === 0) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.3 }}
+              className="text-center py-8 text-gray-400"
+            >
+              <p>No messages yet. Be the first to write one!</p>
+            </motion.div>
+          )}
         </AnimatePresence>
       </motion.div>
     </motion.div>

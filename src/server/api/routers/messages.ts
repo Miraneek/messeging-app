@@ -2,14 +2,14 @@ import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
 import { db } from "@/server/db";
 import { messages } from "@/server/db/schema";
 import { z } from "zod";
-import { sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export const messagesRouter = createTRPCRouter({
   getMessages: publicProcedure.query(() => {
     return db.select({
       id: messages.id,
       text: messages.text,
-      timestamp: messages.createdAt
+      timestamp: messages.created_at
     }).from(messages)
   }),
   createNewMessege: publicProcedure.input(z.string()).mutation(async ({ input }) => {
@@ -17,9 +17,9 @@ export const messagesRouter = createTRPCRouter({
       text: input
     }).returning();
 
-    // Notify all clients about the new message
-    await db.execute(sql`NOTIFY new_message, '${JSON.stringify(newMessage)}'`);
-
     return newMessage;
   }),
+  deleteMessage: publicProcedure.input(z.number()).mutation(async ({ input }) => {
+    await db.delete(messages).where(eq(messages.id, input));
+  })
 });

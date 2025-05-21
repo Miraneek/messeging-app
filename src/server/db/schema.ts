@@ -12,7 +12,7 @@ export const createTable = pgTableCreator((name) => `${name}`);
 export const messages = createTable("message", (d) => ({
   id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
   text: d.varchar({ length: 256 }),
-  createdAt: d
+  created_at: d
     .timestamp({ withTimezone: true })
     .default(sql`now()`)
     .notNull(),
