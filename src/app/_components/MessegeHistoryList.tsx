@@ -8,11 +8,6 @@ import { api } from "@/trpc/react";
 import { formatDistanceToNow } from "date-fns";
 
 // Define the Message type if it's not imported elsewhere
-interface Message {
-  id: string;
-  content: string;
-  timestamp: Date | string;
-}
 
 export const MessageHistoryList = () => {
   const { data: messageHistory, isLoading, isError, dataUpdatedAt } =
